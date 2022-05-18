@@ -10,11 +10,11 @@ LDFLAGS=$(LIBNDPI) -lpcap -lpthread -lm
 # All Target
 all:
 	g++ $(PCAPPP_BUILD_FLAGS) $(PCAPPP_INCLUDES) $(CFLAGS) -c -o main.o main.cpp
-	g++ $(PCAPPP_LIBS_DIR) -static-libstdc++  $(CFLAGS) $(LDFLAGS) -o pcap-convert main.o $(PCAPPP_LIBS)
+	g++ $(PCAPPP_LIBS_DIR) -static-libstdc++  $(CFLAGS) $(LDFLAGS) -o ndpi-plusplus main.o $(PCAPPP_LIBS)
 
 debug:
 	g++ $(PCAPPP_BUILD_FLAGS) $(PCAPPP_INCLUDES) -g -c -o main.o main.cpp
-	g++ $(PCAPPP_LIBS_DIR) -g -static-libstdc++ -o pcap-convert main.o $(PCAPPP_LIBS)
+	g++ $(PCAPPP_LIBS_DIR) -g -static-libstdc++ -o ndpi-plusplus main.o $(PCAPPP_LIBS)
 
 
 # Clean Target
