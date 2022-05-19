@@ -8,11 +8,17 @@
 #include <ndpi_main.h>
 #include <ndpi_typedefs.h>
 
-struct ndpi_detection_module_struct* ndpi_struct;
+struct ndpi_detection_module_struct *ndpi_struct;
 
 void processArgs(int argc, char **argv)
 {
+}
 
+void freeWorkflow()
+{
+
+    // for each flow
+    // delete !!!
 }
 
 int main(int argc, char **argv)
@@ -21,5 +27,16 @@ int main(int argc, char **argv)
 
     ndpi_struct = ndpi_init_detection_module(0);
 
-    
+    if (ndpi_struct == NULL)
+    {
+        freeWorkflow();
+        std::cerr << "Error in ndpi_init_detection_module" << std::endl;
+        return 1;
+    }
+
+    NDPI_PROTOCOL_BITMASK protos;
+    NDPI_BITMASK_SET_ALL(protos);
+    ndpi_set_protocol_detection_bitmask2(ndpi_struct, &protos);
+
+    ndpi_finalize_initialization(ndpi_struct);
 }
