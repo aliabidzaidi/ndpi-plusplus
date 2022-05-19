@@ -1,21 +1,12 @@
 include /usr/local/etc/PcapPlusPlus.mk
 
-
 # nDPI includes
-SRCHOME = /opt/nDPI/src
-CFLAGS=-g -fPIC -DPIC -I$(SRCHOME)/include -g -O2
-LIBNDPI=$(SRCHOME)/lib/libndpi.a
-LDFLAGS=$(LIBNDPI) -lpcap -lpthread -lm
+NDPI_INCLUDES=-I/opt/nDPI/src/include
 
 # All Target
 all:
-	g++ $(PCAPPP_BUILD_FLAGS) $(PCAPPP_INCLUDES) $(CFLAGS) -c -o main.o main.cpp
-	g++ $(PCAPPP_LIBS_DIR) -static-libstdc++  $(CFLAGS) $(LDFLAGS) -o ndpi-plusplus main.o $(PCAPPP_LIBS)
-
-debug:
-	g++ $(PCAPPP_BUILD_FLAGS) $(PCAPPP_INCLUDES) -g -c -o main.o main.cpp
-	g++ $(PCAPPP_LIBS_DIR) -g -static-libstdc++ -o ndpi-plusplus main.o $(PCAPPP_LIBS)
-
+	g++ -fPIC -DPIC -g -I/opt/nDPI/src/include  -W -Wall -Wno-unused-parameter -Wno-unused-function -Wno-address-of-packed-member -g -O2  -pthread   -c -o main.o main.cpp
+	g++ -fPIC -DPIC -g -I/opt/nDPI/src/include  -W -Wall -Wno-unused-parameter -Wno-unused-function -Wno-address-of-packed-member -g -O2  -pthread   -c -o main.o main.cpp
 
 # Clean Target
 clean:
