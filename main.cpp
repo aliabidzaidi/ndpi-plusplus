@@ -7,11 +7,9 @@
 
 #include "parser.hpp"
 
-#include <ndpi_api.h>
-#include <ndpi_main.h>
-#include <ndpi_typedefs.h>
+#include "ndpipp.h"
 
-struct ndpi_detection_module_struct *ndpi_struct;
+nDPIPP n;
 std::string interface;
 int maxPackets;
 
@@ -91,93 +89,6 @@ struct PacketStats
 };
 
 PacketStats stats;
-#define TICK_RESOLUTION 1000
-
-enum nDPI_l3_type
-{
-    L3_IP,
-    L3_IP6
-};
-
-struct nDPI_flow_info
-{
-    uint32_t flow_id;
-    unsigned long long int packets_processed;
-    uint64_t first_seen;
-    uint64_t last_seen;
-    uint64_t hashval;
-
-    enum nDPI_l3_type l3_type;
-    union
-    {
-        struct
-        {
-            uint32_t src;
-            uint32_t pad_00[3];
-            uint32_t dst;
-            uint32_t pad_01[3];
-        } v4;
-        struct
-        {
-            uint64_t src[2];
-            uint64_t dst[2];
-        } v6;
-
-        struct
-        {
-            uint32_t src[4];
-            uint32_t dst[4];
-        } u32;
-    } ip_tuple;
-
-    unsigned long long int total_l4_data_len;
-    uint16_t src_port;
-    uint16_t dst_port;
-
-    uint8_t is_midstream_flow : 1;
-    uint8_t flow_fin_ack_seen : 1;
-    uint8_t flow_ack_seen : 1;
-    uint8_t detection_completed : 1;
-    uint8_t tls_client_hello_seen : 1;
-    uint8_t tls_server_hello_seen : 1;
-    uint8_t flow_info_printed : 1;
-    uint8_t reserved_00 : 1;
-    uint8_t l4_protocol;
-
-    struct ndpi_proto detected_l7_protocol;
-    struct ndpi_proto guessed_protocol;
-
-    struct ndpi_flow_struct *ndpi_flow;
-};
-
-struct nDPI_workflow
-{
-    pcap_t *pcap_handle;
-
-    volatile long int error_or_eof;
-
-    unsigned long long int packets_captured;
-    unsigned long long int packets_processed;
-    unsigned long long int total_l4_data_len;
-    unsigned long long int detected_flow_protocols;
-
-    uint64_t last_idle_scan_time;
-    uint64_t last_time;
-
-    void **ndpi_flows_active;
-    unsigned long long int max_active_flows;
-    unsigned long long int cur_active_flows;
-    unsigned long long int total_active_flows;
-
-    void **ndpi_flows_idle;
-    unsigned long long int max_idle_flows;
-    unsigned long long int cur_idle_flows;
-    unsigned long long int total_idle_flows;
-
-    struct ndpi_detection_module_struct *ndpi_struct;
-};
-
-struct nDPI_workflow *workflow;
 
 void printUsage()
 {
@@ -225,63 +136,6 @@ void processArgs(int argc, char **argv)
     }
 }
 
-// TODO: for each flow and delete all allocations
-void freeWorkflow()
-{
-}
-
-void ndpi_process_packet(pcpp::RawPacket *packet)
-{
-    uint64_t time_ms = (uint64_t)(packet->getPacketTimeStamp().tv_sec) * TICK_RESOLUTION + packet->getPacketTimeStamp().tv_nsec / (1000000000 / TICK_RESOLUTION);
-
-    std::cout << time_ms << std::endl;
-
-    // struct nDPI_workflow *workflow;
-    // struct nDPI_flow_info flow = {};
-
-    workflow->packets_captured++;
-    workflow->last_time = time_ms;
-
-    // size_t hashed_index;
-    // void *tree_result;
-    // struct nDPI_flow_info *flow_to_process;
-
-    // check for idle workflows
-    Parser p;
-    p.parsePacket(*packet);
-
-    // Collect packet detials
-    // L2 + L3 + L4
-    // ip header
-    // ip size
-    // time
-
-    // ndpi_detection_get_l4
-    // ip4 or ip6
-
-    // tree_result = ndpi_tfind(flow, activeFlows, fn node_cmp)
-
-    // tree_result == NULL if flow not found
-    // switch src<-->dst
-    // ndpi_tfind again
-
-    // if tree_result == NULL
-    // checks such as max_active_flows,
-    // create to new flow (ndpi_malloc())
-
-    // ndpi_tsearch ???
-
-    // struct ndpi_proto l7_protocol = ndpi_detection_process_packet(
-    //     ndpi_struct, // ndpi_struct
-    //     // ndpi_flow
-    //     // iph
-    //     // ipsize
-    //     // time
-    //     // src
-    //     // dst
-    // );
-}
-
 /**
  * A callback function for the async capture which is called each time a packet is captured
  */
@@ -296,29 +150,20 @@ static void onPacketArrives(pcpp::RawPacket *packet, pcpp::PcapLiveDevice *dev, 
     // collect stats from packet
     stats->consumePacket(parsedPacket);
 
-    ndpi_process_packet(packet);
+    Parser p;
+    p.parsePacket(*packet);
+
+    n.ndpi_process_packet(packet);
 }
 
 int main(int argc, char **argv)
 {
     processArgs(argc, argv);
 
-    workflow = (struct nDPI_workflow *)ndpi_calloc(1, sizeof(*workflow));
+    bool isSuccess;
+    n = nDPIPP(&isSuccess);
 
-    ndpi_struct = ndpi_init_detection_module(0);
-
-    if (ndpi_struct == NULL)
-    {
-        freeWorkflow();
-        std::cerr << "Error in ndpi_init_detection_module" << std::endl;
-        return 1;
-    }
-
-    NDPI_PROTOCOL_BITMASK protos;
-    NDPI_BITMASK_SET_ALL(protos);
-    ndpi_set_protocol_detection_bitmask2(ndpi_struct, &protos);
-
-    ndpi_finalize_initialization(ndpi_struct);
+    std::cout << "nDPIPP returned isSuccess: " << isSuccess << std::endl;
 
     pcpp::PcapLiveDevice *dev = pcpp::PcapLiveDeviceList::getInstance().getPcapLiveDeviceByName(interface);
     if (dev == NULL || !dev->open())

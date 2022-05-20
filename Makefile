@@ -8,13 +8,12 @@ EXTRAS2=-W -Wall -Wno-unused-parameter -Wno-unused-function -Wno-address-of-pack
 # All Target
 all:
 	g++ $(PCAPPP_BUILD_FLAGS) $(PCAPPP_INCLUDES) -g -I/opt/nDPI/src/include -c parser.cpp
+	g++ $(PCAPPP_BUILD_FLAGS) $(PCAPPP_INCLUDES) -g -I/opt/nDPI/src/include -c ndpipp.cpp
 	g++ $(PCAPPP_BUILD_FLAGS) $(PCAPPP_INCLUDES) -g -I/opt/nDPI/src/include -c main.cpp
-	g++ $(PCAPPP_LIBS_DIR) -fPIC -DPIC -g -I/opt/nDPI/src/include -o ndpi-plusplus main.o parser.o $(PCAPPP_LIBS) $(NDPI_LINKER)
+	g++ $(PCAPPP_LIBS_DIR) -fPIC -DPIC -g -I/opt/nDPI/src/include -o ndpi-plusplus main.o parser.o ndpipp.o $(PCAPPP_LIBS) $(NDPI_LINKER)
 
-x:
-	g++ $(PCAPPP_BUILD_FLAGS) $(PCAPPP_INCLUDES) -g -I/opt/nDPI/src/include -c parser.cpp
 
 # Clean Target
 clean:
-	rm main.o parser.o
+	rm main.o parser.o ndpipp.o
 	rm ndpi-plusplus
