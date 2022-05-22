@@ -150,8 +150,8 @@ static void onPacketArrives(pcpp::RawPacket *packet, pcpp::PcapLiveDevice *dev, 
     // collect stats from packet
     stats->consumePacket(parsedPacket);
 
-    Parser p;
-    p.parsePacket(*packet);
+    // Parser p;
+    // p.parsePacket(*packet);
 
     n.ndpi_process_packet(packet);
 }

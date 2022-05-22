@@ -1,10 +1,25 @@
 #include <iostream>
 
 #include "Packet.h"
+#include "SystemUtils.h"
+#include "EthLayer.h"
+#include "IPv4Layer.h"
+#include "TcpLayer.h"
+#include "UdpLayer.h"
+#include "SystemUtils.h"
 
 #include <ndpi_api.h>
 #include <ndpi_main.h>
 #include <ndpi_typedefs.h>
+
+//#define VERBOSE 1
+#define MAX_FLOW_ROOTS_PER_THREAD 2048
+#define MAX_IDLE_FLOWS_PER_THREAD 64
+#define TICK_RESOLUTION 1000
+#define MAX_READER_THREADS 4
+#define IDLE_SCAN_PERIOD 10000 /* msec */
+#define MAX_IDLE_TIME 300000   /* msec */
+#define INITIAL_THREAD_HASH 0x03dd018b
 
 class nDPIPP
 {
@@ -107,6 +122,20 @@ public:
 
     // TODO: for each flow and delete all allocations
     void freeWorkflow();
+
+    static int ip_tuple_to_string(struct nDPI_flow_info const *const flow,
+                                  char *const src_addr_str, size_t src_addr_len,
+                                  char *const dst_addr_str, size_t dst_addr_len);
+
+    static int ip_tuples_compare(struct nDPI_flow_info const *const A, struct nDPI_flow_info const *const B);
+
+    static int ndpi_workflow_node_cmp(void const *const A, void const *const B);
+
+    static void ndpi_idle_scan_walker(void const *const A, ndpi_VISIT which, int depth, void *const user_data);
+
+    void ndpi_flow_info_freer(void *const node);
+
+    void check_for_idle_flows();
 
     void ndpi_process_packet(pcpp::RawPacket *packet);
 };
