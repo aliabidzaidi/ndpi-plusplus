@@ -7,29 +7,114 @@ nDPIPP::nDPIPP()
 nDPIPP::nDPIPP(bool *isSuccess)
 {
 
-    workflow = (struct nDPI_workflow *)ndpi_calloc(1, sizeof(*workflow));
+    // workflow = (struct nDPI_workflow *)ndpi_calloc(1, sizeof(*workflow));
 
-    ndpi_struct = ndpi_init_detection_module(0);
+    // ndpi_struct = ndpi_init_detection_module(0);
 
-    if (ndpi_struct == NULL)
+    // if (ndpi_struct == NULL)
+    // {
+    //     freeWorkflow();
+    //     std::cerr << "Error in ndpi_init_detection_module" << std::endl;
+    //     *isSuccess = false;
+    // }
+
+    // NDPI_PROTOCOL_BITMASK protos;
+    // NDPI_BITMASK_SET_ALL(protos);
+    // ndpi_set_protocol_detection_bitmask2(ndpi_struct, &protos);
+
+    // ndpi_finalize_initialization(ndpi_struct);
+
+    workflow = init_workflow();
+
+    if (workflow == NULL)
     {
-        freeWorkflow();
-        std::cerr << "Error in ndpi_init_detection_module" << std::endl;
+        std::cerr << "Error creating workflow " << std::endl;
         *isSuccess = false;
     }
-
-    NDPI_PROTOCOL_BITMASK protos;
-    NDPI_BITMASK_SET_ALL(protos);
-    ndpi_set_protocol_detection_bitmask2(ndpi_struct, &protos);
-
-    ndpi_finalize_initialization(ndpi_struct);
-
-    *isSuccess = true;
+    else
+    {
+        *isSuccess = true;
+    }
 }
 
 nDPIPP::~nDPIPP()
 {
     // free all resources
+}
+
+void nDPIPP::free_workflow()
+{
+    auto w = workflow;
+
+    if (w == NULL)
+    {
+        return;
+    }
+
+    //   if (w->pcap_handle != NULL)
+    //   {
+    //     pcap_close(w->pcap_handle);
+    //     w->pcap_handle = NULL;
+    //   }
+
+    if (w->ndpi_struct != NULL)
+    {
+        ndpi_exit_detection_module(w->ndpi_struct);
+    }
+    for (size_t i = 0; i < w->max_active_flows; i++)
+    {
+        ndpi_tdestroy(w->ndpi_flows_active[i], ndpi_flow_info_freer);
+    }
+    ndpi_free(w->ndpi_flows_active);
+    ndpi_free(w->ndpi_flows_idle);
+    ndpi_free(w);
+    // *workflow = NULL;
+}
+
+struct nDPI_workflow *nDPIPP::init_workflow()
+{
+    struct nDPI_workflow *workflow = (struct nDPI_workflow *)ndpi_calloc(1, sizeof(*workflow));
+
+    if (workflow == NULL)
+    {
+        return NULL;
+    }
+
+    ndpi_init_prefs init_prefs = ndpi_no_prefs;
+    workflow->ndpi_struct = ndpi_init_detection_module(init_prefs);
+    if (workflow->ndpi_struct == NULL)
+    {
+        // free_workflow(&workflow);
+        free_workflow();
+        return NULL;
+    }
+
+    workflow->total_active_flows = 0;
+    workflow->max_active_flows = MAX_FLOW_ROOTS_PER_THREAD;
+    workflow->ndpi_flows_active = (void **)ndpi_calloc(workflow->max_active_flows, sizeof(void *));
+    if (workflow->ndpi_flows_active == NULL)
+    {
+        // free_workflow(&workflow);
+        free_workflow();
+        return NULL;
+    }
+
+    workflow->total_idle_flows = 0;
+    workflow->max_idle_flows = MAX_IDLE_FLOWS_PER_THREAD;
+    workflow->ndpi_flows_idle = (void **)ndpi_calloc(workflow->max_idle_flows, sizeof(void *));
+    if (workflow->ndpi_flows_idle == NULL)
+    {
+        // free_workflow(&workflow);
+        free_workflow();
+        return NULL;
+    }
+
+    NDPI_PROTOCOL_BITMASK protos;
+    NDPI_BITMASK_SET_ALL(protos);
+    ndpi_set_protocol_detection_bitmask2(workflow->ndpi_struct, &protos);
+    ndpi_finalize_initialization(workflow->ndpi_struct);
+
+    return workflow;
 }
 
 // TODO: for each flow and delete all allocations
@@ -237,7 +322,7 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
 
     size_t hashed_index;
     void *tree_result;
-    struct nDPI_flow_info *flow_to_process;
+    // struct nDPI_flow_info *flow_to_process;
     // const struct ndpi_ethhdr *ethernet;
     // const struct ndpi_iphdr *ip;
     // struct ndpi_ipv6hdr *ip6;
@@ -249,15 +334,15 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
     // const uint8_t *l4_ptr = NULL;
     // uint16_t l4_len = 0;
 
-    uint16_t type;
-    int thread_index = INITIAL_THREAD_HASH; // generated with `dd if=/dev/random bs=1024 count=1 |& hd'
+    // uint16_t type;
+    // int thread_index = INITIAL_THREAD_HASH; // generated with `dd if=/dev/random bs=1024 count=1 |& hd'
 
     check_for_idle_flows();
 
-    uint8_t *ip;
-    uint16_t ip_size;
-    const uint8_t *l4_ptr;
-    uint16_t l4_len;
+    // uint8_t *ip;
+    // uint16_t ip_size;
+    // const uint8_t *l4_ptr;
+    // uint16_t l4_len;
 
     pcpp::Packet parsedPacket(packet);
     // Ethernet Layer
@@ -293,8 +378,8 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
                   << "IP ID: 0x" << std::hex << pcpp::netToHost16(ipLayer->getIPv4Header()->ipId) << std::endl
                   << "TTL: " << std::dec << (int)ipLayer->getIPv4Header()->timeToLive << std::endl;
 
-        ip = (uint8_t *)ipLayer->getIPv4Header();
-        ip_size = (uint16_t)ipLayer->getIPv4Header()->totalLength;
+        // ip = (uint8_t *)ipLayer->getIPv4Header();
+        // ip_size = (uint16_t)ipLayer->getIPv4Header()->totalLength;
         flow.l3_type = L3_IP;
         flow.ip_tuple.v4.src = ipLayer->getIPv4Header()->ipSrc;
         flow.ip_tuple.v4.dst = ipLayer->getIPv4Header()->ipDst;
@@ -336,8 +421,8 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
 
         const pcpp::tcphdr *t = tcpLayer->getTcpHeader();
 
-        l4_ptr = (uint8_t *)tcpLayer->getTcpHeader();
-        l4_len = ((uint16_t)tcpLayer->getDataLen());
+        // l4_ptr = (uint8_t *)tcpLayer->getTcpHeader();
+        // l4_len = ((uint16_t)tcpLayer->getDataLen());
 
         flow.is_midstream_flow = t->synFlag == 0 ? 1 : 0;
         flow.flow_fin_ack_seen = (t->finFlag == 1 && t->ackFlag == 1 ? 1 : 0);
@@ -365,8 +450,8 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
                   << "Destination UDP port: " << udpLayer->getDstPort() << std::endl
                   << "UDP length: " << pcpp::netToHost16(udpLayer->getUdpHeader()->length) << std::endl;
 
-        l4_ptr = (uint8_t *)udpLayer->getUdpHeader();
-        l4_len = ((uint16_t)udpLayer->getDataLen());
+        // l4_ptr = (uint8_t *)udpLayer->getUdpHeader();
+        // l4_len = ((uint16_t)udpLayer->getDataLen());
         // (uint16_t)udpLayer->getUdpHeader()->length;
 
         const pcpp::udphdr *u = udpLayer->getUdpHeader();
@@ -414,17 +499,16 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
 
     // ndpi_tfind
     hashed_index = flow.hashval % workflow->max_active_flows;
-    // tree_result = ndpi_tfind(&flow, &workflow->ndpi_flows_active[hashed_index], ndpi_workflow_node_cmp);
 
-    // if (tree_result == NULL)
-    // {
-    //     /* flow not found in btree: switch src <-> dst and try to find it again */
-    // }
+    tree_result = ndpi_tfind(&flow, &workflow->ndpi_flows_active[hashed_index], ndpi_workflow_node_cmp);
 
-    // if (tree_result == NULL)
-    // {
-    //     /* flow still not found, must be new */
-    // }
+    if (tree_result == NULL)
+    {
+        /* flow not found in btree: switch src <-> dst and try to find it again */
+    }
 
-
+    if (tree_result == NULL)
+    {
+        /* flow still not found, must be new */
+    }
 }
