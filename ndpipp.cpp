@@ -272,6 +272,10 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
               << "Destination MAC address: " << ethernetLayer->getDestMac() << std::endl
               << "Ether type = 0x" << std::hex << pcpp::netToHost16(ethernetLayer->getEthHeader()->etherType) << std::endl;
 
+    // TODO:  Collect following fields L3 ipv4/ipv6
+    // flow.l3_type
+    // flow.ip_tuple.v4.src   / v6.src
+    // flow.ip_tuple.v4.dst   / v6.dst
     if (parsedPacket.isPacketOfType(pcpp::IPv4))
     {
         // IP Layer
@@ -291,10 +295,30 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
 
         ip = (uint8_t *)ipLayer->getIPv4Header();
         ip_size = (uint16_t)ipLayer->getIPv4Header()->totalLength;
+        flow.l3_type = L3_IP;
+        flow.ip_tuple.v4.src = ipLayer->getIPv4Header()->ipSrc;
+        flow.ip_tuple.v4.dst = ipLayer->getIPv4Header()->ipDst;
+    }
+    else if (parsedPacket.isPacketOfType(pcpp::IPv6))
+    {
+        // TODO: ipv6
+        flow.l3_type = L3_IP6;
+    }
+    else
+    {
+        std::cerr << "A Non IP packet found " << std::endl;
+        return;
     }
 
+    // TODO: TCP fields to collect
+    // flow.is_midstream_flow
+    // flow.flow_fin_ack_seen
+    // flow.flow_ack_seen
+    // flow.src_port
+    // flow.dst_port
     if (parsedPacket.isPacketOfType(pcpp::TCP))
     {
+        flow.l4_protocol = IPPROTO_TCP;
         // TCP
         pcpp::TcpLayer *tcpLayer = parsedPacket.getLayerOfType<pcpp::TcpLayer>();
         if (tcpLayer == NULL)
@@ -310,11 +334,23 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
                   << "Window size: " << pcpp::netToHost16(tcpLayer->getTcpHeader()->windowSize) << std::endl;
         //   << "TCP flags: " << printTcpFlags(tcpLayer) << std::endl;
 
+        const pcpp::tcphdr *t = tcpLayer->getTcpHeader();
+
         l4_ptr = (uint8_t *)tcpLayer->getTcpHeader();
         l4_len = ((uint16_t)tcpLayer->getDataLen());
+
+        flow.is_midstream_flow = t->synFlag == 0 ? 1 : 0;
+        flow.flow_fin_ack_seen = (t->finFlag == 1 && t->ackFlag == 1 ? 1 : 0);
+        flow.flow_ack_seen = t->ackFlag;
+        flow.src_port = t->portSrc;
+        flow.src_port = t->portDst;
     }
+    // TODO: Collect UDP fields
+    // flow.src_port
+    // flow.dst_port
     else if (parsedPacket.isPacketOfType(pcpp::UDP))
     {
+        flow.l4_protocol = IPPROTO_UDP;
         // UDP Layer
         pcpp::UdpLayer *udpLayer = parsedPacket.getLayerOfType<pcpp::UdpLayer>();
         if (udpLayer == NULL)
@@ -332,45 +368,63 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
         l4_ptr = (uint8_t *)udpLayer->getUdpHeader();
         l4_len = ((uint16_t)udpLayer->getDataLen());
         // (uint16_t)udpLayer->getUdpHeader()->length;
+
+        const pcpp::udphdr *u = udpLayer->getUdpHeader();
+
+        flow.src_port = u->portSrc;
+        flow.src_port = u->portDst;
     }
 
+    // TODO: Discarded tcp/udp flag
     // uint8_t x;
     // std::cout << "nDPI l4 before" << x << "---" << ip << " "  << ip_size << " "  << &l4_ptr << " " << l4_len << std::endl;
 
     // if (ndpi_detection_get_l4(ip, ip_size, &l4_ptr, &l4_len,
-    //                           &x, NDPI_DETECTION_ONLY_IPV4) != 0)
+    //                           &flow.l4_protocol, NDPI_DETECTION_ONLY_IPV4) != 0)
     // {
     //     fprintf(stderr, "[%8llu] nDPI IPv4/L4 payload detection failed, L4 length: %u\n",
     //             workflow->packets_captured, ip_size);
     //     return;
     // }
 
-    // std::cout << "nDPI l4 detection returned " << x << "---" << ip << " "  << ip_size << " "  << &l4_ptr << " " << l4_len << std::endl;
+    // // std::cout << "nDPI l4 detection returned " << x << "---" << ip << " "  << ip_size << " "  << &l4_ptr << " " << l4_len << std::endl;
 
-    // TODO: 1 L3 ipv4/ipv6
-    // Collect following fields
-    // flow.l3_type
-    // flow.ip_tuple.v4.src
-    // flow.ip_tuple.v4.dst
+    // if(flow.l4_protocol == IPPROTO_TCP){
+    //     std::cout << "TCPPPPPPPPPCPPCPCPPCPCPCPPCPCPPCPCP" << std::endl;
+    // }
+    // else if(flow.l4_protocol == IPPROTO_UDP){
+    //     std::cout << "UUUUUUUUUUUDUDUDUUDUDUDUDPUDPUDPUPDUPDDUP" << std::endl;
+    // }
 
-    // ipv6
-    // flow.ip_typle.v6
-
-    // flow.l4_protocol
-
-    // TODO: 2
-    // TCP
-    // flow.is_midstream_flow
-    // flow.flow_fin_ack_seen
-    // flow.flow_ack_seen
-    // flow.src_port
-    // flow.dst_port
-
-    // UDP
-    // flow.src_port
-    // flow.dst_port
-
-    // TODO: 3
-    // Calculate hash based on l4,l3 fields
+    // TODO: 3 Calculate hash based on l4,l3 fields
     // ndpi_flowv4_flow_hash OR ndpi_flowv6_flow_hash
+    if (flow.l3_type == L3_IP)
+    {
+        if (ndpi_flowv4_flow_hash(flow.l4_protocol, flow.ip_tuple.v4.src, flow.ip_tuple.v4.dst,
+                                  flow.src_port, flow.dst_port, 0, 0,
+                                  (uint8_t *)&flow.hashval, sizeof(flow.hashval)) != 0)
+        {
+            flow.hashval = flow.ip_tuple.v4.src + flow.ip_tuple.v4.dst; // fallback
+        }
+    }
+    else if (flow.l3_type == L3_IP6)
+    {
+    }
+    flow.hashval += flow.l4_protocol + flow.src_port + flow.dst_port;
+
+    // ndpi_tfind
+    hashed_index = flow.hashval % workflow->max_active_flows;
+    // tree_result = ndpi_tfind(&flow, &workflow->ndpi_flows_active[hashed_index], ndpi_workflow_node_cmp);
+
+    // if (tree_result == NULL)
+    // {
+    //     /* flow not found in btree: switch src <-> dst and try to find it again */
+    // }
+
+    // if (tree_result == NULL)
+    // {
+    //     /* flow still not found, must be new */
+    // }
+
+
 }
