@@ -22,6 +22,7 @@
 #define INITIAL_THREAD_HASH 0x03dd018b
 
 #define TICK_RESOLUTION 1000
+static volatile long int flow_id = 0;
 
 enum nDPI_l3_type
 {

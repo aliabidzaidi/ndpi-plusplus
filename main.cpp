@@ -190,7 +190,7 @@ int main(int argc, char **argv)
     dev->startCapture(onPacketArrives, &stats);
 
     // sleep for 10 seconds in main thread, in the meantime packets are captured in the async thread
-    pcpp::multiPlatformSleep(5);
+    pcpp::multiPlatformSleep(20);
 
     // stop capturing packets
     dev->stopCapture();

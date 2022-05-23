@@ -322,10 +322,10 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
 
     size_t hashed_index;
     void *tree_result;
-    // struct nDPI_flow_info *flow_to_process;
+    struct nDPI_flow_info *flow_to_process;
     // const struct ndpi_ethhdr *ethernet;
     // const struct ndpi_iphdr *ip;
-    // struct ndpi_ipv6hdr *ip6;
+    struct ndpi_ipv6hdr *ip6;
 
     // const uint16_t eth_offset = 0;
     // uint16_t ip_offset;
@@ -339,10 +339,10 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
 
     check_for_idle_flows();
 
-    // uint8_t *ip;
-    // uint16_t ip_size;
+    uint8_t *ip;
+    uint16_t ip_size;
     // const uint8_t *l4_ptr;
-    // uint16_t l4_len;
+    uint16_t l4_len;
 
     pcpp::Packet parsedPacket(packet);
     // Ethernet Layer
@@ -352,10 +352,10 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
         std::cerr << "Something went wrong, couldn't find Ethernet layer" << std::endl;
         return;
     }
-    std::cout << std::endl
-              << "Source MAC address: " << ethernetLayer->getSourceMac() << std::endl
-              << "Destination MAC address: " << ethernetLayer->getDestMac() << std::endl
-              << "Ether type = 0x" << std::hex << pcpp::netToHost16(ethernetLayer->getEthHeader()->etherType) << std::endl;
+    // std::cout << std::endl
+    //           << "Source MAC address: " << ethernetLayer->getSourceMac() << std::endl
+    //           << "Destination MAC address: " << ethernetLayer->getDestMac() << std::endl
+    //           << "Ether type = 0x" << std::hex << pcpp::netToHost16(ethernetLayer->getEthHeader()->etherType) << std::endl;
 
     // TODO:  Collect following fields L3 ipv4/ipv6
     // flow.l3_type
@@ -372,14 +372,14 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
         }
 
         // print source and dest IP addresses, IP ID and TTL
-        std::cout << std::endl
-                  << "Source IP address: " << ipLayer->getSrcIPAddress() << std::endl
-                  << "Destination IP address: " << ipLayer->getDstIPAddress() << std::endl
-                  << "IP ID: 0x" << std::hex << pcpp::netToHost16(ipLayer->getIPv4Header()->ipId) << std::endl
-                  << "TTL: " << std::dec << (int)ipLayer->getIPv4Header()->timeToLive << std::endl;
+        // std::cout << std::endl
+        //           << "Source IP address: " << ipLayer->getSrcIPAddress() << std::endl
+        //           << "Destination IP address: " << ipLayer->getDstIPAddress() << std::endl
+        //           << "IP ID: 0x" << std::hex << pcpp::netToHost16(ipLayer->getIPv4Header()->ipId) << std::endl
+        //           << "TTL: " << std::dec << (int)ipLayer->getIPv4Header()->timeToLive << std::endl;
 
-        // ip = (uint8_t *)ipLayer->getIPv4Header();
-        // ip_size = (uint16_t)ipLayer->getIPv4Header()->totalLength;
+        ip = (uint8_t *)ipLayer->getIPv4Header();
+        ip_size = (uint16_t)ipLayer->getIPv4Header()->totalLength;
         flow.l3_type = L3_IP;
         flow.ip_tuple.v4.src = ipLayer->getIPv4Header()->ipSrc;
         flow.ip_tuple.v4.dst = ipLayer->getIPv4Header()->ipDst;
@@ -391,7 +391,7 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
     }
     else
     {
-        std::cerr << "A Non IP packet found " << std::endl;
+        // std::cerr << "A Non IP packet found " << std::endl;
         return;
     }
 
@@ -413,16 +413,16 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
         }
 
         // print TCP source and dest ports, window size, and the TCP flags that are set in this layer
-        std::cout << std::endl
-                  << "Source TCP port: " << tcpLayer->getSrcPort() << std::endl
-                  << "Destination TCP port: " << tcpLayer->getDstPort() << std::endl
-                  << "Window size: " << pcpp::netToHost16(tcpLayer->getTcpHeader()->windowSize) << std::endl;
+        // std::cout << std::endl
+        //           << "Source TCP port: " << tcpLayer->getSrcPort() << std::endl
+        //           << "Destination TCP port: " << tcpLayer->getDstPort() << std::endl
+        //           << "Window size: " << pcpp::netToHost16(tcpLayer->getTcpHeader()->windowSize) << std::endl;
         //   << "TCP flags: " << printTcpFlags(tcpLayer) << std::endl;
 
         const pcpp::tcphdr *t = tcpLayer->getTcpHeader();
 
         // l4_ptr = (uint8_t *)tcpLayer->getTcpHeader();
-        // l4_len = ((uint16_t)tcpLayer->getDataLen());
+        l4_len = ((uint16_t)tcpLayer->getDataLen());
 
         flow.is_midstream_flow = t->synFlag == 0 ? 1 : 0;
         flow.flow_fin_ack_seen = (t->finFlag == 1 && t->ackFlag == 1 ? 1 : 0);
@@ -445,13 +445,13 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
         }
 
         // print TCP source and dest ports, window size, and the TCP flags that are set in this layer
-        std::cout << std::endl
-                  << "Source UDP port: " << udpLayer->getSrcPort() << std::endl
-                  << "Destination UDP port: " << udpLayer->getDstPort() << std::endl
-                  << "UDP length: " << pcpp::netToHost16(udpLayer->getUdpHeader()->length) << std::endl;
+        // std::cout << std::endl
+        //           << "Source UDP port: " << udpLayer->getSrcPort() << std::endl
+        //           << "Destination UDP port: " << udpLayer->getDstPort() << std::endl
+        //           << "UDP length: " << pcpp::netToHost16(udpLayer->getUdpHeader()->length) << std::endl;
 
         // l4_ptr = (uint8_t *)udpLayer->getUdpHeader();
-        // l4_len = ((uint16_t)udpLayer->getDataLen());
+        l4_len = ((uint16_t)udpLayer->getDataLen());
         // (uint16_t)udpLayer->getUdpHeader()->length;
 
         const pcpp::udphdr *u = udpLayer->getUdpHeader();
@@ -505,10 +505,169 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
     if (tree_result == NULL)
     {
         /* flow not found in btree: switch src <-> dst and try to find it again */
+        /* flow not found in btree: switch src <-> dst and try to find it again */
+        uint32_t orig_src_ip[4] = {flow.ip_tuple.u32.src[0], flow.ip_tuple.u32.src[1],
+                                   flow.ip_tuple.u32.src[2], flow.ip_tuple.u32.src[3]};
+        uint32_t orig_dst_ip[4] = {flow.ip_tuple.u32.dst[0], flow.ip_tuple.u32.dst[1],
+                                   flow.ip_tuple.u32.dst[2], flow.ip_tuple.u32.dst[3]};
+        uint16_t orig_src_port = flow.src_port;
+        uint16_t orig_dst_port = flow.dst_port;
+
+        flow.ip_tuple.u32.src[0] = orig_dst_ip[0];
+        flow.ip_tuple.u32.src[1] = orig_dst_ip[1];
+        flow.ip_tuple.u32.src[2] = orig_dst_ip[2];
+        flow.ip_tuple.u32.src[3] = orig_dst_ip[3];
+
+        flow.ip_tuple.u32.dst[0] = orig_src_ip[0];
+        flow.ip_tuple.u32.dst[1] = orig_src_ip[1];
+        flow.ip_tuple.u32.dst[2] = orig_src_ip[2];
+        flow.ip_tuple.u32.dst[3] = orig_src_ip[3];
+
+        flow.src_port = orig_dst_port;
+        flow.dst_port = orig_src_port;
+
+        tree_result = ndpi_tfind(&flow, &workflow->ndpi_flows_active[hashed_index], ndpi_workflow_node_cmp);
+
+        flow.ip_tuple.u32.src[0] = orig_src_ip[0];
+        flow.ip_tuple.u32.src[1] = orig_src_ip[1];
+        flow.ip_tuple.u32.src[2] = orig_src_ip[2];
+        flow.ip_tuple.u32.src[3] = orig_src_ip[3];
+
+        flow.ip_tuple.u32.dst[0] = orig_dst_ip[0];
+        flow.ip_tuple.u32.dst[1] = orig_dst_ip[1];
+        flow.ip_tuple.u32.dst[2] = orig_dst_ip[2];
+        flow.ip_tuple.u32.dst[3] = orig_dst_ip[3];
+
+        flow.src_port = orig_src_port;
+        flow.dst_port = orig_dst_port;
     }
 
     if (tree_result == NULL)
     {
-        /* flow still not found, must be new */
+        if (workflow->cur_active_flows == workflow->max_active_flows)
+        {
+            fprintf(stderr, "[%8llu] max flows to track reached: %llu, idle: %llu\n",
+                    workflow->packets_captured,
+                    workflow->max_active_flows, workflow->cur_idle_flows);
+            return;
+        }
+
+        flow_to_process = (struct nDPI_flow_info *)ndpi_malloc(sizeof(*flow_to_process));
+        if (flow_to_process == NULL)
+        {
+            fprintf(stderr, "[%8llu] Not enough memory for flow info\n",
+                    workflow->packets_captured);
+            return;
+        }
+
+        memcpy(flow_to_process, &flow, sizeof(*flow_to_process));
+        flow_to_process->flow_id = __sync_fetch_and_add(&flow_id, 1);
+
+        flow_to_process->ndpi_flow = (struct ndpi_flow_struct *)ndpi_flow_malloc(SIZEOF_FLOW_STRUCT);
+        if (flow_to_process->ndpi_flow == NULL)
+        {
+            fprintf(stderr, "[%8llu, %4u] Not enough memory for flow struct\n",
+                    workflow->packets_captured, flow_to_process->flow_id);
+            return;
+        }
+        memset(flow_to_process->ndpi_flow, 0, SIZEOF_FLOW_STRUCT);
+
+        printf("[%8llu,%4u] new %sflow\n", workflow->packets_captured,
+               flow_to_process->flow_id,
+               (flow_to_process->is_midstream_flow != 0 ? "midstream-" : ""));
+
+        if (ndpi_tsearch(flow_to_process, &workflow->ndpi_flows_active[hashed_index], ndpi_workflow_node_cmp) == NULL)
+        {
+            /* Possible Leak, but should not happen as we'd abort earlier. */
+            return;
+        }
+
+        workflow->cur_active_flows++;
+        workflow->total_active_flows++;
+    }
+    else
+    {
+        flow_to_process = *(struct nDPI_flow_info **)tree_result;
+    }
+
+    flow_to_process->packets_processed++;
+    flow_to_process->total_l4_data_len += l4_len;
+
+    if (flow_to_process->first_seen == 0)
+    {
+        flow_to_process->first_seen = time_ms;
+    }
+    flow_to_process->last_seen = time_ms;
+    /* current packet is an TCP-ACK? */
+    flow_to_process->flow_ack_seen = flow.flow_ack_seen;
+
+    /* TCP-FIN: indicates that at least one side wants to end the connection */
+    if (flow.flow_fin_ack_seen != 0 && flow_to_process->flow_fin_ack_seen == 0)
+    {
+        flow_to_process->flow_fin_ack_seen = 1;
+        printf("[%8llu, %4u] end of flow\n", workflow->packets_captured,
+               flow_to_process->flow_id);
+        return;
+    }
+
+    /*
+     * This example tries to use maximum supported packets for detection:
+     * for uint8: 0xFF
+     */
+    if (flow_to_process->ndpi_flow->num_processed_pkts == 0xFF)
+    {
+        return;
+    }
+    else if (flow_to_process->ndpi_flow->num_processed_pkts == 0xFE)
+    {
+        /* last chance to guess something, better then nothing */
+        uint8_t protocol_was_guessed = 0;
+        flow_to_process->guessed_protocol =
+            ndpi_detection_giveup(workflow->ndpi_struct,
+                                  flow_to_process->ndpi_flow,
+                                  1, &protocol_was_guessed);
+        if (protocol_was_guessed != 0)
+        {
+            printf("[%8llu, %4d][GUESSED] protocol: %s | app protocol: %s | category: %s\n",
+                   workflow->packets_captured,
+                   flow_to_process->flow_id,
+                   ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->guessed_protocol.master_protocol),
+                   ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->guessed_protocol.app_protocol),
+                   ndpi_category_get_name(workflow->ndpi_struct, flow_to_process->guessed_protocol.category));
+        }
+        else
+        {
+            printf("[%8llu, %4d][FLOW NOT CLASSIFIED]\n",
+                   workflow->packets_captured, flow_to_process->flow_id);
+        }
+    }
+
+    flow_to_process->detected_l7_protocol =
+        ndpi_detection_process_packet(workflow->ndpi_struct, flow_to_process->ndpi_flow,
+                                      ip != NULL ? (uint8_t *)ip : (uint8_t *)ip6,
+                                      ip_size, time_ms);
+
+    if (ndpi_is_protocol_detected(workflow->ndpi_struct,
+                                  flow_to_process->detected_l7_protocol) != 0 &&
+        flow_to_process->detection_completed == 0)
+    {
+        if (flow_to_process->detected_l7_protocol.master_protocol != NDPI_PROTOCOL_UNKNOWN ||
+            flow_to_process->detected_l7_protocol.app_protocol != NDPI_PROTOCOL_UNKNOWN)
+        {
+            flow_to_process->detection_completed = 1;
+            workflow->detected_flow_protocols++;
+
+            printf("[%8llu, %4d][DETECTED] protocol: %s | app protocol: %s | category: %s\n",
+                   workflow->packets_captured,
+                   flow_to_process->flow_id,
+                   ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->detected_l7_protocol.master_protocol),
+                   ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->detected_l7_protocol.app_protocol),
+                   ndpi_category_get_name(workflow->ndpi_struct, flow_to_process->detected_l7_protocol.category));
+        }
+    }
+
+    if (flow_to_process->ndpi_flow->num_extra_packets_checked <=
+        flow_to_process->ndpi_flow->max_extra_packets_to_check)
+    {
     }
 }
