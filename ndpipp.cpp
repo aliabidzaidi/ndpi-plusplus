@@ -6,24 +6,6 @@ nDPIPP::nDPIPP()
 
 nDPIPP::nDPIPP(bool *isSuccess)
 {
-
-    // workflow = (struct nDPI_workflow *)ndpi_calloc(1, sizeof(*workflow));
-
-    // ndpi_struct = ndpi_init_detection_module(0);
-
-    // if (ndpi_struct == NULL)
-    // {
-    //     freeWorkflow();
-    //     std::cerr << "Error in ndpi_init_detection_module" << std::endl;
-    //     *isSuccess = false;
-    // }
-
-    // NDPI_PROTOCOL_BITMASK protos;
-    // NDPI_BITMASK_SET_ALL(protos);
-    // ndpi_set_protocol_detection_bitmask2(ndpi_struct, &protos);
-
-    // ndpi_finalize_initialization(ndpi_struct);
-
     workflow = init_workflow();
 
     if (workflow == NULL)
@@ -51,11 +33,6 @@ void nDPIPP::free_workflow()
         return;
     }
 
-    //   if (w->pcap_handle != NULL)
-    //   {
-    //     pcap_close(w->pcap_handle);
-    //     w->pcap_handle = NULL;
-    //   }
 
     if (w->ndpi_struct != NULL)
     {
@@ -84,7 +61,6 @@ struct nDPI_workflow *nDPIPP::init_workflow()
     workflow->ndpi_struct = ndpi_init_detection_module(init_prefs);
     if (workflow->ndpi_struct == NULL)
     {
-        // free_workflow(&workflow);
         free_workflow();
         return NULL;
     }
@@ -94,7 +70,6 @@ struct nDPI_workflow *nDPIPP::init_workflow()
     workflow->ndpi_flows_active = (void **)ndpi_calloc(workflow->max_active_flows, sizeof(void *));
     if (workflow->ndpi_flows_active == NULL)
     {
-        // free_workflow(&workflow);
         free_workflow();
         return NULL;
     }
@@ -104,7 +79,6 @@ struct nDPI_workflow *nDPIPP::init_workflow()
     workflow->ndpi_flows_idle = (void **)ndpi_calloc(workflow->max_idle_flows, sizeof(void *));
     if (workflow->ndpi_flows_idle == NULL)
     {
-        // free_workflow(&workflow);
         free_workflow();
         return NULL;
     }
@@ -292,11 +266,11 @@ void nDPIPP::check_for_idle_flows()
                     (struct nDPI_flow_info *)workflow->ndpi_flows_idle[--workflow->cur_idle_flows];
                 if (f->flow_fin_ack_seen == 1)
                 {
-                    printf("Free fin flow with id %u\n", f->flow_id);
+                    std::cout << "Free fin flow with id " << f->flow_id << std::endl;
                 }
                 else
                 {
-                    printf("Free idle flow with id %u\n", f->flow_id);
+                    std::cout << "Free idle flow with id " << f->flow_id << std::endl;
                 }
                 ndpi_tdelete(f, &workflow->ndpi_flows_active[idle_scan_index],
                              ndpi_workflow_node_cmp);
@@ -323,19 +297,7 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
     size_t hashed_index;
     void *tree_result;
     struct nDPI_flow_info *flow_to_process;
-    // const struct ndpi_ethhdr *ethernet;
-    // const struct ndpi_iphdr *ip;
     struct ndpi_ipv6hdr *ip6;
-
-    // const uint16_t eth_offset = 0;
-    // uint16_t ip_offset;
-    // uint16_t ip_size;
-
-    // const uint8_t *l4_ptr = NULL;
-    // uint16_t l4_len = 0;
-
-    // uint16_t type;
-    // int thread_index = INITIAL_THREAD_HASH; // generated with `dd if=/dev/random bs=1024 count=1 |& hd'
 
     check_for_idle_flows();
 
@@ -357,10 +319,6 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
     //           << "Destination MAC address: " << ethernetLayer->getDestMac() << std::endl
     //           << "Ether type = 0x" << std::hex << pcpp::netToHost16(ethernetLayer->getEthHeader()->etherType) << std::endl;
 
-    // TODO:  Collect following fields L3 ipv4/ipv6
-    // flow.l3_type
-    // flow.ip_tuple.v4.src   / v6.src
-    // flow.ip_tuple.v4.dst   / v6.dst
     if (parsedPacket.isPacketOfType(pcpp::IPv4))
     {
         // IP Layer
@@ -388,19 +346,15 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
     {
         // TODO: ipv6
         flow.l3_type = L3_IP6;
+        std::cout << "Flow is IPv6 return " << std::endl;
+        return;
     }
     else
     {
-        // std::cerr << "A Non IP packet found " << std::endl;
+        std::cerr << "A Non IP packet found " << std::endl;
         return;
     }
 
-    // TODO: TCP fields to collect
-    // flow.is_midstream_flow
-    // flow.flow_fin_ack_seen
-    // flow.flow_ack_seen
-    // flow.src_port
-    // flow.dst_port
     if (parsedPacket.isPacketOfType(pcpp::TCP))
     {
         flow.l4_protocol = IPPROTO_TCP;
@@ -452,17 +406,12 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
 
         // l4_ptr = (uint8_t *)udpLayer->getUdpHeader();
         l4_len = ((uint16_t)udpLayer->getDataLen());
-        // (uint16_t)udpLayer->getUdpHeader()->length;
 
         const pcpp::udphdr *u = udpLayer->getUdpHeader();
 
         flow.src_port = u->portSrc;
         flow.src_port = u->portDst;
     }
-
-    // TODO: Discarded tcp/udp flag
-    // uint8_t x;
-    // std::cout << "nDPI l4 before" << x << "---" << ip << " "  << ip_size << " "  << &l4_ptr << " " << l4_len << std::endl;
 
     // if (ndpi_detection_get_l4(ip, ip_size, &l4_ptr, &l4_len,
     //                           &flow.l4_protocol, NDPI_DETECTION_ONLY_IPV4) != 0)
@@ -471,18 +420,8 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
     //             workflow->packets_captured, ip_size);
     //     return;
     // }
-
     // // std::cout << "nDPI l4 detection returned " << x << "---" << ip << " "  << ip_size << " "  << &l4_ptr << " " << l4_len << std::endl;
 
-    // if(flow.l4_protocol == IPPROTO_TCP){
-    //     std::cout << "TCPPPPPPPPPCPPCPCPPCPCPCPPCPCPPCPCP" << std::endl;
-    // }
-    // else if(flow.l4_protocol == IPPROTO_UDP){
-    //     std::cout << "UUUUUUUUUUUDUDUDUUDUDUDUDPUDPUDPUPDUPDDUP" << std::endl;
-    // }
-
-    // TODO: 3 Calculate hash based on l4,l3 fields
-    // ndpi_flowv4_flow_hash OR ndpi_flowv6_flow_hash
     if (flow.l3_type == L3_IP)
     {
         if (ndpi_flowv4_flow_hash(flow.l4_protocol, flow.ip_tuple.v4.src, flow.ip_tuple.v4.dst,
@@ -494,6 +433,7 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
     }
     else if (flow.l3_type == L3_IP6)
     {
+        return;
     }
     flow.hashval += flow.l4_protocol + flow.src_port + flow.dst_port;
 
@@ -546,17 +486,14 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
     {
         if (workflow->cur_active_flows == workflow->max_active_flows)
         {
-            fprintf(stderr, "[%8llu] max flows to track reached: %llu, idle: %llu\n",
-                    workflow->packets_captured,
-                    workflow->max_active_flows, workflow->cur_idle_flows);
+            std::cerr << workflow->packets_captured << " max flows to track reached: " << workflow->max_active_flows << ", idle: " << workflow->cur_idle_flows << std::endl;
             return;
         }
 
         flow_to_process = (struct nDPI_flow_info *)ndpi_malloc(sizeof(*flow_to_process));
         if (flow_to_process == NULL)
         {
-            fprintf(stderr, "[%8llu] Not enough memory for flow info\n",
-                    workflow->packets_captured);
+            std::cerr << workflow->packets_captured << "Not enough memory for flow info\n";
             return;
         }
 
@@ -566,16 +503,12 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
         flow_to_process->ndpi_flow = (struct ndpi_flow_struct *)ndpi_flow_malloc(SIZEOF_FLOW_STRUCT);
         if (flow_to_process->ndpi_flow == NULL)
         {
-            fprintf(stderr, "[%8llu, %4u] Not enough memory for flow struct\n",
-                    workflow->packets_captured, flow_to_process->flow_id);
+            std::cerr << workflow->packets_captured << workflow->packets_captured << "Not enough memory for flow struct\n";
             return;
         }
         memset(flow_to_process->ndpi_flow, 0, SIZEOF_FLOW_STRUCT);
 
-        printf("[%8llu,%4u] new %sflow\n", workflow->packets_captured,
-               flow_to_process->flow_id,
-               (flow_to_process->is_midstream_flow != 0 ? "midstream-" : ""));
-
+        std::cout << workflow->packets_captured << "," << flow_to_process->flow_id << " new " << (flow_to_process->is_midstream_flow != 0 ? "midstream-" : "") << " flow\n";
         if (ndpi_tsearch(flow_to_process, &workflow->ndpi_flows_active[hashed_index], ndpi_workflow_node_cmp) == NULL)
         {
             /* Possible Leak, but should not happen as we'd abort earlier. */
@@ -605,9 +538,7 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
     if (flow.flow_fin_ack_seen != 0 && flow_to_process->flow_fin_ack_seen == 0)
     {
         flow_to_process->flow_fin_ack_seen = 1;
-        printf("[%8llu, %4u] end of flow\n", workflow->packets_captured,
-               flow_to_process->flow_id);
-        return;
+        std::cout << workflow->packets_captured << "," << flow_to_process->flow_id << "end of flow\n";
     }
 
     /*
@@ -628,17 +559,11 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
                                   1, &protocol_was_guessed);
         if (protocol_was_guessed != 0)
         {
-            printf("[%8llu, %4d][GUESSED] protocol: %s | app protocol: %s | category: %s\n",
-                   workflow->packets_captured,
-                   flow_to_process->flow_id,
-                   ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->guessed_protocol.master_protocol),
-                   ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->guessed_protocol.app_protocol),
-                   ndpi_category_get_name(workflow->ndpi_struct, flow_to_process->guessed_protocol.category));
+            std::cout << workflow->packets_captured << "," << flow_to_process->flow_id << " [GUESSED] protocol: " << ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->guessed_protocol.master_protocol) << " app protocol: " << ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->guessed_protocol.app_protocol) << " category:     " << ndpi_category_get_name(workflow->ndpi_struct, flow_to_process->guessed_protocol.category) << std::endl;
         }
         else
         {
-            printf("[%8llu, %4d][FLOW NOT CLASSIFIED]\n",
-                   workflow->packets_captured, flow_to_process->flow_id);
+            std::cout << workflow->packets_captured << "," << flow_to_process->flow_id << " [FLOW NOT CLASSIFIED]\n";
         }
     }
 
@@ -657,12 +582,7 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
             flow_to_process->detection_completed = 1;
             workflow->detected_flow_protocols++;
 
-            printf("[%8llu, %4d][DETECTED] protocol: %s | app protocol: %s | category: %s\n",
-                   workflow->packets_captured,
-                   flow_to_process->flow_id,
-                   ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->detected_l7_protocol.master_protocol),
-                   ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->detected_l7_protocol.app_protocol),
-                   ndpi_category_get_name(workflow->ndpi_struct, flow_to_process->detected_l7_protocol.category));
+            std::cout << workflow->packets_captured << "," << flow_to_process->flow_id << " [DETECTED] protocol: " << ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->detected_l7_protocol.master_protocol) << " app protocol: " << ndpi_get_proto_name(workflow->ndpi_struct, flow_to_process->detected_l7_protocol.app_protocol) << " category:  " << ndpi_category_get_name(workflow->ndpi_struct, flow_to_process->detected_l7_protocol.category) << std::endl;
         }
     }
 
