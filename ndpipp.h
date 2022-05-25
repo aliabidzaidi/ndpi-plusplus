@@ -114,14 +114,13 @@ private:
     struct nDPI_workflow *workflow;
 
 public:
+    static uint8_t maxPackets;
+
     nDPIPP();
 
-    nDPIPP(bool *isSuccess);
+    nDPIPP(bool &isSuccess);
 
     ~nDPIPP();
-
-    // TODO: for each flow and delete all allocations
-    void freeWorkflow();
 
     void free_workflow();
 

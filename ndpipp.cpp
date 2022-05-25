@@ -1,27 +1,31 @@
 #include "ndpipp.h"
 
+uint8_t nDPIPP::maxPackets = 0xFF;
+
 nDPIPP::nDPIPP()
 {
 }
 
-nDPIPP::nDPIPP(bool *isSuccess)
+nDPIPP::nDPIPP(bool &isSuccess)
 {
     workflow = init_workflow();
+
+    // this->maxPackets = maxPackets;
 
     if (workflow == NULL)
     {
         std::cerr << "Error creating workflow " << std::endl;
-        *isSuccess = false;
+        isSuccess = false;
     }
     else
     {
-        *isSuccess = true;
+        isSuccess = true;
     }
 }
 
 nDPIPP::~nDPIPP()
 {
-    // free all resources
+    std::cout << "Calling destructor nDPI" << std::endl;
 }
 
 void nDPIPP::free_workflow()
@@ -32,7 +36,6 @@ void nDPIPP::free_workflow()
     {
         return;
     }
-
 
     if (w->ndpi_struct != NULL)
     {
@@ -89,11 +92,6 @@ struct nDPI_workflow *nDPIPP::init_workflow()
     ndpi_finalize_initialization(workflow->ndpi_struct);
 
     return workflow;
-}
-
-// TODO: for each flow and delete all allocations
-void nDPIPP::freeWorkflow()
-{
 }
 
 int nDPIPP::ip_tuples_compare(struct nDPI_flow_info const *const A, struct nDPI_flow_info const *const B)
@@ -413,15 +411,6 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
         flow.src_port = u->portDst;
     }
 
-    // if (ndpi_detection_get_l4(ip, ip_size, &l4_ptr, &l4_len,
-    //                           &flow.l4_protocol, NDPI_DETECTION_ONLY_IPV4) != 0)
-    // {
-    //     fprintf(stderr, "[%8llu] nDPI IPv4/L4 payload detection failed, L4 length: %u\n",
-    //             workflow->packets_captured, ip_size);
-    //     return;
-    // }
-    // // std::cout << "nDPI l4 detection returned " << x << "---" << ip << " "  << ip_size << " "  << &l4_ptr << " " << l4_len << std::endl;
-
     if (flow.l3_type == L3_IP)
     {
         if (ndpi_flowv4_flow_hash(flow.l4_protocol, flow.ip_tuple.v4.src, flow.ip_tuple.v4.dst,
@@ -545,11 +534,11 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
      * This example tries to use maximum supported packets for detection:
      * for uint8: 0xFF
      */
-    if (flow_to_process->ndpi_flow->num_processed_pkts == 0xFF)
+    if (flow_to_process->ndpi_flow->num_processed_pkts == nDPIPP::maxPackets)
     {
         return;
     }
-    else if (flow_to_process->ndpi_flow->num_processed_pkts == 0xFE)
+    else if (flow_to_process->ndpi_flow->num_processed_pkts >= nDPIPP::maxPackets - 1)
     {
         /* last chance to guess something, better then nothing */
         uint8_t protocol_was_guessed = 0;

@@ -11,7 +11,7 @@
 
 nDPIPP n;
 std::string interface;
-int maxPackets;
+// uint8_t maxPackets = 0xFF;
 
 /**
  * A struct for collecting packet statistics
@@ -123,8 +123,8 @@ void processArgs(int argc, char **argv)
             break;
 
         case 'N':
-            maxPackets = std::stoi(optarg);
-            std::cout << "Maximum packets to send in nDPI set to: " << maxPackets << std::endl;
+            nDPIPP::maxPackets = (uint8_t)std::stoi(optarg);
+            std::cout << "Maximum packets to send in nDPI set to: " << nDPIPP::maxPackets << std::endl;
             break;
 
         case 'h': // -h or --help
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
     processArgs(argc, argv);
 
     bool isSuccess;
-    n = nDPIPP(&isSuccess);
+    n = nDPIPP(isSuccess);
 
     std::cout << "nDPIPP returned isSuccess: " << isSuccess << std::endl;
 
@@ -198,4 +198,7 @@ int main(int argc, char **argv)
     // print results
     std::cout << "Results:" << std::endl;
     stats.printToConsole();
+
+
+    
 }
