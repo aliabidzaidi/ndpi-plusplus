@@ -5,7 +5,7 @@
 #include "SystemUtils.h"
 #include "PcapLiveDeviceList.h"
 
-#include "parser.hpp"
+#include "parser.h"
 
 #include "ndpipp.h"
 

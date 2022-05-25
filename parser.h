@@ -7,6 +7,8 @@
 #include "UdpLayer.h"
 #include "SystemUtils.h"
 
+#include "common.h"
+
 class Parser
 {
 
