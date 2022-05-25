@@ -18,6 +18,7 @@
 #endif
 
 #include "common.h"
+#include "parser.h"
 
 class nDPIPP
 {
