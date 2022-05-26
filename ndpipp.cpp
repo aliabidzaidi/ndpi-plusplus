@@ -294,7 +294,7 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
 
     size_t hashed_index;
     void *tree_result;
-    struct nDPI_flow_info *flow_to_process;                                             
+    struct nDPI_flow_info *flow_to_process;
 
     check_for_idle_flows();
 
@@ -308,9 +308,8 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
 
     bool isParseSuccess = p.parsePacket(packet, flow, ip, ip_size, l4_len);
 
-    if(!isParseSuccess)
+    if (!isParseSuccess)
         return;
-
 
     if (flow.l3_type == L3_IP)
     {
@@ -480,4 +479,67 @@ void nDPIPP::ndpi_process_packet(pcpp::RawPacket *packet)
         flow_to_process->ndpi_flow->max_extra_packets_to_check)
     {
     }
+}
+
+void nDPIPP::ndpi_print_flow(void const *const A, ndpi_VISIT which, int depth, void *const user_data)
+{
+    if ((which == ndpi_preorder) || (which == ndpi_leaf))
+    {
+        /* Avoid walking the same node multiple times */
+
+        // struct ndpi_flow_info *flow = *(struct ndpi_flow_info **)A;
+        struct nDPI_flow_info *const flowa = *(struct nDPI_flow_info **)A;
+        struct nDPI_workflow *const workflow = (struct nDPI_workflow *)user_data;
+
+        u_int16_t sport, dport;
+
+        sport = ntohs(flowa->src_port);
+        dport = ntohs(flowa->dst_port);
+        char src_addr_str[INET6_ADDRSTRLEN + 1] = {0};
+        char dst_addr_str[INET6_ADDRSTRLEN + 1] = {0};
+
+        if (ip_tuple_to_string(flowa, src_addr_str, sizeof(src_addr_str), dst_addr_str, sizeof(dst_addr_str)) != 0)
+        {
+            // ndpi_snprintf(buf + used, sizeof(buf) - used, "IP[%s -> %s]", src_addr_str, dst_addr_str);
+            std::cout
+                << "IP [src: " << src_addr_str << "] "
+                << " [dst: " << dst_addr_str << "] "
+                << "L4 protocol " << flowa->l4_protocol << " [src: " << sport << "] "
+                << " [dst: " << dport << "] ";
+        }
+        std::cout
+            << ": " << flowa->flow_id
+            << "id: " << flowa->flow_id
+            << " [GUESSED] protocol: " << ndpi_get_proto_name(workflow->ndpi_struct, flowa->guessed_protocol.master_protocol)
+            << " app protocol: " << ndpi_get_proto_name(workflow->ndpi_struct, flowa->guessed_protocol.app_protocol)
+            << " category:     " << ndpi_category_get_name(workflow->ndpi_struct, flowa->guessed_protocol.category) << std::endl;
+    }
+}
+
+void nDPIPP::print_stats()
+{
+    std::cout << "-------------------------------------------------------------------------" << std::endl;
+    std::cout << "Packets processed: \t"
+              << workflow->packets_processed << std::endl
+              << "Total L4 processed: \t" << workflow->total_l4_data_len << std::endl
+              << "Total active flows: \t" << workflow->total_active_flows << std::endl
+              << "Total Idle flows: \t" << workflow->total_idle_flows << std::endl
+              << "Detected flows: \t" << workflow->detected_flow_protocols << std::endl;
+    std::cout << "-------------------------------------------------------------------------" << std::endl;
+
+    std::cout << "Active flows---------------------------------------------------------------------------------------" << std::endl;
+    for (size_t idle_scan_index = 0; idle_scan_index < workflow->max_active_flows; ++idle_scan_index)
+    {
+        ndpi_twalk(workflow->ndpi_flows_active[idle_scan_index], ndpi_print_flow, workflow);
+    }
+    std::cout << "Active flows---------------------------------------------------------------------------------------" << std::endl;
+
+    std::cout << std::endl;
+
+    // std::cout << "Idle flows---------------------------------------------------------------------------------------" << std::endl;
+    // for (size_t idle_scan_index = 0; idle_scan_index < workflow->max_active_flows; ++idle_scan_index)
+    // {
+    //     ndpi_twalk(workflow->ndpi_flows_idle[idle_scan_index], ndpi_print_flow, workflow);
+    // }
+    // std::cout << "Idle flows---------------------------------------------------------------------------------------" << std::endl;
 }

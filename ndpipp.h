@@ -55,4 +55,8 @@ public:
     void check_for_idle_flows();
 
     void ndpi_process_packet(pcpp::RawPacket *packet);
+
+    static void ndpi_print_flow(void const *const A, ndpi_VISIT which, int depth, void *const user_data);
+
+    void print_stats();
 };

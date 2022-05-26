@@ -12,6 +12,7 @@
 nDPIPP n;
 std::string interface;
 // uint8_t maxPackets = 0xFF;
+static bool programLoop = true;
 
 /**
  * A struct for collecting packet statistics
@@ -150,10 +151,14 @@ static void onPacketArrives(pcpp::RawPacket *packet, pcpp::PcapLiveDevice *dev, 
     // collect stats from packet
     stats->consumePacket(parsedPacket);
 
-    // Parser p;
-    // p.parsePacket(*packet);
-
     n.ndpi_process_packet(packet);
+}
+
+static void sighandler(int signum)
+{
+    std::cout << "Received SIGNAL :" << signum << std::endl;
+
+    programLoop = false;
 }
 
 int main(int argc, char **argv)
@@ -190,7 +195,14 @@ int main(int argc, char **argv)
     dev->startCapture(onPacketArrives, &stats);
 
     // sleep for 10 seconds in main thread, in the meantime packets are captured in the async thread
-    pcpp::multiPlatformSleep(20);
+    // pcpp::multiPlatformSleep(20);
+
+    signal(SIGINT, sighandler);
+    signal(SIGTERM, sighandler);
+    while (programLoop)
+    {
+        pcpp::multiPlatformSleep(2);
+    }
 
     // stop capturing packets
     dev->stopCapture();
@@ -199,6 +211,5 @@ int main(int argc, char **argv)
     std::cout << "Results:" << std::endl;
     stats.printToConsole();
 
-
-    
+    n.print_stats();
 }

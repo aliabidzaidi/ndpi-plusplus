@@ -74,6 +74,10 @@ struct nDPI_flow_info
     struct ndpi_proto guessed_protocol;
 
     struct ndpi_flow_struct *ndpi_flow;
+
+    // result only, not used for flow identification
+    // ndpi_protocol detected_protocol;
+    // ndpi_confidence_t confidence;
 };
 struct nDPI_workflow
 {
